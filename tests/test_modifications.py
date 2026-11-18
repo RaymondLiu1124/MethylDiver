@@ -141,6 +141,39 @@ class TestModifications(unittest.TestCase):
             self.assertEqual(run.returncode, 2, run.stderr)
             self.assertFalse(out.exists())
 
+    def test_resume_completed_first_target_and_retained_files(self):
+        from unittest.mock import patch
+        from methyldiver import genome
+        from methyldiver.cli import main
+
+        sample, _ = self.pair()
+        original = genome._run_chunk
+        def interrupt_hydroxy(payload):
+            if payload[2]["modification"] == "5hmC":
+                raise KeyboardInterrupt
+            return original(payload)
+        out = self.root / "both"
+        args = ["single", "--input", str(sample), "--reference", str(self.reference),
+                "--region", "chrToy:0-14", "--threads", "1", "--chunk-units", "1",
+                "--modification", "5mC,5hmC", "--keep-patterns", "T", "--chunk-manifests", "T"]
+        with patch.object(genome, "_run_chunk", side_effect=interrupt_hydroxy):
+            with self.assertRaises(SystemExit):
+                main(args + ["--output", str(out)])
+        self.assertFalse(out.exists())
+        with patch.object(genome, "_run_chunk", wraps=original) as calculate:
+            self.assertEqual(main(args + ["--output", str(out), "--resume-from", str(out) + ".checkpoint"]), 0)
+            self.assertTrue(calculate.call_args_list)
+            self.assertEqual({c.args[0][2]["modification"] for c in calculate.call_args_list}, {"5hmC"})
+        self.assertEqual(main(args + ["--output", str(self.root / "fresh")]), 0)
+        for target in ("5mC", "5hmC"):
+            for path in (out / target).rglob("*"):
+                if path.is_file() and path.name != "analysis_summary.json" and not path.name.endswith(".json.gz"):
+                    self.assertEqual(path.read_bytes(), (self.root / "fresh" / path.relative_to(out)).read_bytes())
+            info = json.loads((out / target / "analysis_summary.json").read_text())
+            self.assertEqual(info["n_chunks_reused"], info["n_chunks"] if target == "5mC" else 0)
+            for c in info["chunks"]:
+                self.assertTrue((out / target / c["manifest"]).is_file())
+
     def test_region_multiple_targets_outputs_labels_reader_scope_and_cleanup(self):
         control, test = self.pair()
         for command in ("compare", "single"):

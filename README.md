@@ -4,7 +4,7 @@
 methylation level, normalized pattern entropy, and Epiallele distance from
 molecular CpG patterns in modBAM files.
 
-**Version 2.3.1** · **Python 3.10+** · [Documentation](docs/README.md) · [Release notes](CHANGELOG.md)
+**Version 2.4.0** · **Python 3.10+** · [Documentation](docs/README.md) · [Release notes](CHANGELOG.md)
 
 | Command | Function |
 | --- | --- |
@@ -74,6 +74,10 @@ For selected regions, replace `--genome` with
 works for these modes too. Large BEDs are automatically processed in chunks.
 Coordinates are
 **zero-based, end-exclusive**. The output directory must be new.
+
+Interrupted genome or chunked region run? Repeat the command with `--resume-from`.
+MethylDiver resumes from `<output>.checkpoint` and reports how many chunks it reused.
+See [resuming an analysis](docs/source/compare.md#resuming-an-analysis).
 
 ## Output
 

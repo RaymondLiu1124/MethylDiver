@@ -1,6 +1,6 @@
 # MethylDiver documentation
 
-User documentation for **MethylDiver 2.3.1**, a tool for methylation level,
+User documentation for **MethylDiver 2.4.0**, a tool for methylation level,
 pattern entropy, and Epiallele distance from long-read modBAMs.
 
 [Software and quick start](https://github.com/lxd98/MethylDiver) ·

@@ -1,12 +1,12 @@
 # Command reference
 
-Help captured from MethylDiver **2.3.1**. Defaults appear in brackets.
+Help captured from MethylDiver **2.4.0**. Defaults appear in brackets.
 
 ## methyldiver
 
 ```text
 Program: methyldiver (Methylation and epiallele diversity from long reads)
-Version: 2.3.1
+Version: 2.4.0
 
 Usage: methyldiver <command> [options]
 
@@ -59,6 +59,8 @@ Output options:
   --test-label STR               Test label in three_metrics.tsv [test].
 
 Processing options (genome or selected regions):
+  --resume-from [DIR]            Reuse verified chunks from DIR [off]. With no DIR, use
+                                 OUTPUT.checkpoint.
   --threads INT                  Worker processes for genome, BED, or region chunks [8].
   --chunk-units INT              Requested units per chunk; reduced for large N; boundary units
                                  preserved [10000].
@@ -112,6 +114,8 @@ Output options:
   --sample-label STR             Sample label in two_metrics.tsv [sample].
 
 Processing options (genome or selected regions):
+  --resume-from [DIR]            Reuse verified chunks from DIR [off]. With no DIR, use
+                                 OUTPUT.checkpoint.
   --threads INT                  Worker processes for genome, BED, or region chunks [8].
   --chunk-units INT              Requested units per chunk; reduced for large N; boundary units
                                  preserved [10000].

@@ -306,6 +306,46 @@ class TestGenome(unittest.TestCase):
             self.run_genome(output)
         self.assertEqual(sentinel.read_text(), "existing work")
 
+    def test_checkpoint_restart_after_interruption(self):
+        from unittest.mock import patch
+        from methyldiver import genome
+        from methyldiver.cli import main
+        import sqlite3
+
+        output = self.root / "restart"
+        fresh = self.root / "fresh"
+        checkpoint = self.root / "restart.checkpoint"
+        base = ["compare", "--genome", "--control", str(self.control), "--test", str(self.test),
+                "--reference", str(self.ref), "--chunk-units", "1", "--threads", "1"]
+        def interrupt_third(payload):
+            if payload[0]["id"] == "part_000002":
+                raise KeyboardInterrupt
+            return original(payload)
+        original = genome._run_chunk
+        with patch.object(genome, "_run_chunk", side_effect=interrupt_third):
+            with self.assertRaises(SystemExit) as interrupted:
+                main(base + ["--output", str(output)])
+        self.assertEqual(interrupted.exception.code, 130)
+        self.assertFalse(output.exists())
+        with self.assertRaises(SystemExit):
+            main(base + ["--output", str(output), "--min-depth", "7", "--resume-from"])
+        self.assertTrue(checkpoint.is_dir())
+        with sqlite3.connect(checkpoint / "chunks.sqlite") as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM chunks").fetchone()[0], 2)
+            db.execute("UPDATE chunks SET complete_data=? WHERE id='part_000001'", (b"truncated",))
+        # A raised guard and different worker count are safe on the same inputs.
+        base += ["--max-reads-per-region", "200000", "--threads", "2"]
+        self.assertEqual(main(base + ["--output", str(output), "--resume-from"]), 0)
+        self.assertEqual(main(base + ["--output", str(fresh)]), 0)
+        self.assertFalse(checkpoint.exists())
+        resumed = json.loads((output / "analysis_summary.json").read_text())
+        expected = json.loads((fresh / "analysis_summary.json").read_text())
+        self.assertEqual(resumed["n_chunks_reused"], 1)
+        self.assertEqual(resumed["modification_qc"], expected["modification_qc"])
+        self.assertEqual(resumed["outputs"], expected["outputs"])
+        for name in ("three_metrics.tsv", "chunks.tsv"):
+            self.assertEqual((fresh / name).read_bytes(), (output / name).read_bytes())
+
     def test_parameter_and_reference_validation(self):
         for kwargs in ({"threads": 0}, {"chunk_units": 0}, {"call_threshold": .5},
                        {"min_depth": 0}, {"k": 0}, {"k": 11}, {"min_base_quality": 255},

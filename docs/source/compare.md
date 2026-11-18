@@ -185,9 +185,34 @@ The numbers and timings above are illustrative. Machine-readable run details
 remain in `analysis_summary.json`; `compare` no longer prints a JSON object at
 completion.
 
-Results are
-published only after all chunks finish. The output directory must be new;
-there is no resume mode. A failed or interrupted run removes its staged output.
-Read and pattern-evaluation limits apply to each chunk. Reduce `--chunk-units`
-or explicitly raise the corresponding limit if needed. `--max-total-bases`
-applies to selected-region mode only.
+## Resuming an analysis
+
+As of v2.4.0, chunked `compare` and `single` CLI runs automatically save
+completed chunks in `<output>.checkpoint/`. After an interruption, repeat the
+original command and append `--resume-from`. For example:
+
+```bash
+methyldiver compare --control ESC.bam --test brain.bam --reference mm39.fa \
+  --genome --threads 24 --min-depth 5 --output MD_results --resume-from
+```
+
+To specify the checkpoint explicitly, use `--resume-from MD_results.checkpoint`.
+The output directory must be new. The final TSV is assembled in reference-plan
+order after all chunks finish. The run summary records `n_chunks_reused`.
+
+The command checks the BAM and reference paths, sizes and modification times,
+index hashes, software versions, modification targets, unit plan, filters
+and retention options before reusing any chunks. Verified chunks are reused
+even with `--keep-patterns F` and `--chunk-manifests F`. Missing chunks and
+chunks whose payload fails its checksum are recalculated. When a read or
+pattern-evaluation limit causes an error, increase the reported limit and
+resume. You may change worker count. Lower limits require reprocessing chunks
+computed under higher limits. Keep `--chunk-units` and analysis filters the
+same. With two modification targets, one checkpoint tracks both.
+
+Allow temporary disk space for both the checkpoint and staged output. A
+successful run removes its checkpoint after publishing final results. For a
+small region that would otherwise use the single-process, in-memory path, set
+`--chunk-units` on the first run to enable chunked processing. Runs started
+before v2.4.0 have no checkpoints. A final metrics TSV or a progress log does
+not contain the per-chunk state needed to resume.

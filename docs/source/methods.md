@@ -61,5 +61,5 @@ Reads and overlapping units are not independent biological replicates.
 Matching site-average bedMethyl values cannot reconstruct molecular patterns.
 
 The modBAM command performs bounded extraction and call filtering. CRAM support,
-cohort sample manifests, resume/checkpoint reuse, joint multistate
+cohort sample manifests, joint multistate
 pattern models, non-CpG contexts, and resampling remain future stages.

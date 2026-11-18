@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import sys
 import shutil
+import sqlite3
 import tempfile
 import time
 
@@ -64,11 +65,17 @@ def _modification_argument(value):
 
 
 def _run_selected_modifications(args):
+    from .checkpoint import Checkpoint
+    with Checkpoint(args.output, args.resume_from, args.modification.split(",")) as checkpoint:
+        return _run_targets(args, checkpoint)
+
+
+def _run_targets(args, checkpoint):
     from .progress import print_analysis_summary, duration
     started = time.monotonic()
     modifications = args.modification.split(",")
     if len(modifications) == 1:
-        manifest, files = _run_analysis(args)
+        manifest, files = _run_analysis(args, checkpoint)
         print_analysis_summary(args.output, manifest, files, time.monotonic() - started)
         return 0
     if os.path.lexists(args.output):
@@ -82,7 +89,7 @@ def _run_selected_modifications(args):
             child.modification, child.output = modification, stage / modification
             print(f"methyldiver: processing {modification} at CpGs ({len(completed) + 1}/{len(modifications)})", file=sys.stderr)
             child_started = time.monotonic()
-            manifest, files = _run_analysis(child)
+            manifest, files = _run_analysis(child, checkpoint)
             if completed and manifest["inputs"] != completed[0][1]["inputs"]:
                 raise ValueError("Input identities changed between modification analyses; no results were published.")
             completed.append((modification, manifest, files, time.monotonic() - child_started))
@@ -140,6 +147,8 @@ def _analysis_arguments(command, *, single=False):
         output.add_argument("--test-label", default="test", metavar="STR", help="Test label in three_metrics.tsv [%(default)s].")
 
     genome = command.add_argument_group("Processing options (genome or selected regions)")
+    genome.add_argument("--resume-from", nargs="?", const="", metavar="DIR",
+                        help="Reuse verified chunks from DIR [off]. With no DIR, use OUTPUT.checkpoint.")
     genome.add_argument("--threads", type=int, default=8, metavar="INT", help="Worker processes for genome, BED, or region chunks [%(default)s].")
     genome.add_argument("--chunk-units", type=int, metavar="INT", help="Requested units per chunk; reduced for large N; boundary units preserved [10000].")
     genome.add_argument("--chunk-manifests", type=_boolean_argument, metavar="BOOL", help="Save per-chunk metadata as .json.gz; False omits it [False].")
@@ -184,7 +193,7 @@ def _discovery_arguments(command):
     settings.add_argument("--top", type=int, default=100, metavar="INT", help="Maximum ranked regions exported to TSV and BED [%(default)s].")
 
 
-def _run_analysis(args):
+def _run_analysis(args, checkpoint):
     single = args.command == "single"
     control, test = (args.input, None) if single else (args.control, args.test)
     control_label = "control" if single else args.control_label
@@ -210,7 +219,7 @@ def _run_analysis(args):
         # Conservative bound: no reference can have more than one CpG per
         # two bases. The streaming planner then counts actual reference units.
         count_bound = sum(max(0, (r.end - r.start) // 2 - args.k + 1) for r in regions)
-        chunked_regions = (args.threads != 1 or args.chunk_units is not None
+        chunked_regions = (args.resume_from is not None or args.threads != 1 or args.chunk_units is not None
                            or args.chunk_manifests is not None or args.keep_patterns is not None
                            or sum(r.end - r.start for r in regions) > span_limit
                            or count_bound * (1 if single else 2) * 2 ** args.k > MAX_DENSE_COUNT_CELLS)
@@ -237,7 +246,7 @@ def _run_analysis(args):
                 min_base_quality=args.min_base_quality, min_depth=args.min_depth,
                 max_reads_per_region=args.max_reads_per_region,
                 max_pattern_evaluations=args.max_pattern_evaluations,
-                progress=reporter.analysis, status=reporter.stage, **extra)
+                progress=reporter.analysis, status=reporter.stage, _checkpoint=checkpoint, **extra)
         files = ["complete_patterns/", "incomplete_patterns/"] if manifest["keep_patterns"] else []
         if manifest["chunk_manifests"]:
             files.append("chunk_manifests/")
@@ -332,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command in ("compare", "single"):
             return _run_selected_modifications(args)
-    except (OSError, ValueError, ImportError) as exc:
+    except (OSError, ValueError, ImportError, sqlite3.Error) as exc:
         parser.exit(2, f"methyldiver: error: {exc}\n")
     except KeyboardInterrupt:
         parser.exit(130, "methyldiver: interrupted; no completed output was published.\n")

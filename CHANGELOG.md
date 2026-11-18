@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.0 - 2026-11-18
+
+- Chunked `compare` and `single` runs now checkpoint completed chunks. After an interruption, repeat the command with `--resume-from [DIR]` to verify and reuse those chunks. Worker counts and read or pattern limits can be adjusted for a retry.
+
 ## 2.3.1 - 2026-10-16
 
 - Default to eight worker processes for `compare`, `single`, and the streaming

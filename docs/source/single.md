@@ -26,6 +26,9 @@ are 0-based and end-exclusive. Both modes use sliding units of N consecutive
 reference CpGs (default 3, supported 1–10). The sample is extracted once per
 region or genome chunk; no comparison metrics are calculated.
 
+A chunked run interrupted before completion can continue with `--resume-from`.
+See [resuming an analysis](compare.md#resuming-an-analysis).
+
 The default genome output contains:
 
 | File | Contents |

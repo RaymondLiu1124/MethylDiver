@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import sys
 import tempfile
 
 import pysam
@@ -163,13 +164,13 @@ def _analyze_chunked(control, test, reference, output, *, threads=8, chunk_units
                    control_label="control", test_label="test", sample_label="sample",
                    k=3, modification="5mC", call_threshold=0.8, min_mapq=20, min_base_quality=10, min_depth=1,
                    max_reads_per_region=100_000, max_pattern_evaluations=5_000_000,
-                   progress=None, status=None, regions=None, max_total_bases=100_000, regions_bed=None):
+                   progress=None, status=None, regions=None, max_total_bases=100_000, regions_bed=None, _checkpoint=None):
     """Write CpG units across the genome or independent selected regions.
 
     ``threads`` controls worker processes (default 8). ``progress(done, total, units)`` is
     optional and runs in the parent. ``status(phase, done, total)`` reports TSV
     writing and finalization. No output is published on failure. Existing output
-    directories are never reused; there is no checkpoint/resume mode.
+    directories are never overwritten. The CLI checkpoints finished chunks.
     ``chunk_manifests=True`` saves compressed JSON (.json.gz); False omits it.
     ``keep_patterns=True`` retains both Parquet folders; False removes them
     after producing the plotting TSV. Both options default to False.
@@ -252,6 +253,9 @@ def _analyze_chunked(control, test, reference, output, *, threads=8, chunk_units
     settings = {"k": k, "modification": modification, "call_threshold": call_threshold, "min_mapq": min_mapq,
                 "min_base_quality": min_base_quality, "min_depth": min_depth,
                 "max_reads_per_region": max_reads_per_region, "max_pattern_evaluations": max_pattern_evaluations}
+    source_hashes = {name: _digest(Path(__file__).with_name(name)) for name in (
+        "genome.py", "regions.py", "modbam.py", "metrics.py", "coordinates.py", "output.py",
+        "reader.py", "progress.py", "checkpoint.py", "cli.py", "__init__.py")}
     output.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=f".{output.name}.", suffix=".tmp", dir=output.parent))
     try:
@@ -265,29 +269,55 @@ def _analyze_chunked(control, test, reference, output, *, threads=8, chunk_units
             writer.writerows(({"id": j["id"], **p} for j in jobs for p in j["parts"]) if selected else jobs)
         summaries = []
         completed_units = 0
+        limits = {key: settings[key] for key in ("max_reads_per_region", "max_pattern_evaluations")}
+        missing = jobs
+        reused = 0
+        if _checkpoint is not None:
+            signature = {"version": __version__, "pysam": pysam.__version__, "pyarrow": pa.__version__,
+                         "inputs": identities, "index_hashes": index_hashes, "roles": roles,
+                         "source_hashes": source_hashes,
+                         "mode": "regions" if selected else "genome", "bed_hash": bed_hash,
+                         "regions": region_reports if selected else None,
+                         "plan": _digest(stage / "chunks.tsv"), "chunk_units": chunk_units,
+                         "settings": {key: v for key, v in settings.items() if key not in limits},
+                         "keep_patterns": keep_patterns, "chunk_manifests": chunk_manifests}
+            _checkpoint.bind(modification, signature)
+            if _checkpoint.resuming:
+                missing = []
+                for job in jobs:
+                    summary = _checkpoint.restore(modification, job, stage, keep_patterns, chunk_manifests, limits)
+                    if summary is None:
+                        missing.append(job)
+                    else:
+                        summaries.append(summary)
+                        completed_units += summary["n_units"]
+                reused = len(summaries)
+                print(f"methyldiver: resumed {reused:,}/{len(jobs):,} verified chunks", file=sys.stderr)
         def record(summary):
             nonlocal completed_units
+            if _checkpoint is not None:
+                _checkpoint.save(modification, stage, summary, limits)
             summaries.append(summary)
             completed_units += summary["n_units"]
             if progress is not None:
                 progress(len(summaries), len(jobs), completed_units)
         if progress is not None:
-            progress(0, len(jobs), 0)
+            progress(reused, len(jobs), completed_units)
         if threads == 1:
-            for job in jobs:
+            for job in missing:
                 record(_run_chunk((job, inputs, settings, stage, chunk_manifests, keep_patterns)))
-        elif jobs:
+        elif missing:
             # Spawn avoids inheriting HTSlib/Arrow state across a fork. Bound the
             # queue so a failed chunk does not leave a whole genome queued.
-            with ProcessPoolExecutor(max_workers=min(threads, len(jobs)),
+            with ProcessPoolExecutor(max_workers=min(threads, len(missing)),
                                      mp_context=multiprocessing.get_context("spawn")) as pool:
-                iterator = iter(jobs)
+                iterator = iter(missing)
                 pending = set()
                 def submit_one():
                     job = next(iterator, None)
                     if job is not None:
                         pending.add(pool.submit(_run_chunk, (job, inputs, settings, stage, chunk_manifests, keep_patterns)))
-                for _ in range(min(threads * 2, len(jobs))):
+                for _ in range(min(threads * 2, len(missing))):
                     submit_one()
                 try:
                     while pending:
@@ -299,7 +329,7 @@ def _analyze_chunked(control, test, reference, output, *, threads=8, chunk_units
                     for future in pending:
                         future.cancel()
                     raise
-        else:
+        elif not jobs:
             # Typed empty datasets keep the result readable when no contig
             # contains k CpGs. No artificial metric values are introduced.
             for folder, schema in zip(("complete_patterns", "incomplete_patterns"), _schemas(k, single)):
@@ -361,12 +391,11 @@ def _analyze_chunked(control, test, reference, output, *, threads=8, chunk_units
             "reference_validation": "BAM/FASTA contig names and lengths; sequence identity not proven",
             "inputs": dict(zip((*roles, "reference", *(f"{role}_index" for role in roles), "reference_index"), identities)),
             "index_sha256": dict(zip((*roles, "reference"), index_hashes)),
-            "headers": headers, "n_chunks": len(jobs), "n_units": completed_units,
+            "headers": headers, "n_chunks": len(jobs), "n_chunks_reused": reused, "n_units": completed_units,
             "n_units_passing_min_depth": sum(s["n_units_passing_min_depth"] for s in summaries),
             "chunks": sorted(summaries, key=lambda s: s["id"]),
             "pysam_version": pysam.__version__, "pyarrow_version": pa.__version__,
-            "source_sha256": {name: _digest(Path(__file__).with_name(name)) for name in
-                ("genome.py", "regions.py", "modbam.py", "metrics.py", "coordinates.py", "output.py", "reader.py", "progress.py", "cli.py", "__init__.py")}}
+            "source_sha256": source_hashes}
         if selected:
             manifest.update({"regions": region_reports, "n_regions": len(regions),
                              "total_region_bases": sum(r.end - r.start for r in regions),

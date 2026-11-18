@@ -1,6 +1,6 @@
 # Select 5mC or 5hmC at CpGs
 
-MethylDiver 2.3.1 supports **5mCG and 5hmCG**: 5mC and 5hmC at reference CpG
+MethylDiver 2.4.0 supports **5mCG and 5hmCG**: 5mC and 5hmC at reference CpG
 sites. Both `compare` and `single` accept the following selections:
 
 | Option | Analysis |
