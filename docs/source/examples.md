@@ -2,7 +2,7 @@
 
 ## Start with real COLO829 data
 
-The [COLO829 promoter example](../../examples/colo829_promoter/README.md)
+The [COLO829 promoter example](https://github.com/RaymondLiu1124/MethylDiver/blob/v2.4.1/examples/colo829_promoter/README.md)
 includes regional modBAMs from COLO829_1 and COLO829BL_1, the complete indexed
 chr12 reference, a merged HOXC13;HOXC13-AS promoter BED and expected outputs
 (approximately 42 MB). From the repository root, after installation:

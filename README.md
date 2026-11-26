@@ -4,7 +4,7 @@
 methylation level, normalized pattern entropy, and Epiallele distance from
 molecular CpG patterns in modBAM files.
 
-**Version 2.4.0** · **Python 3.10+** · [Documentation](docs/README.md) · [Release notes](CHANGELOG.md)
+**Version 2.4.1** · **Python 3.10+** · [Documentation](docs/README.md) · [Release notes](CHANGELOG.md)
 
 | Command | Function |
 | --- | --- |
@@ -12,13 +12,14 @@ molecular CpG patterns in modBAM files.
 | `single` | Calculate methylation and entropy for one sample |
 | `read` | Preview or export retained Parquet results |
 | `discover` | Rank high-ED genomic windows or BED regions from paired results |
+| `cluster select/fit/apply` | [Learn regional read patterns and assign molecules from another run](docs/source/cluster.md) |
 
 ## Installation
 
 Clone the repository:
 
 ```bash
-git clone https://github.com/lxd98/MethylDiver.git
+git clone https://github.com/RaymondLiu1124/MethylDiver.git
 cd MethylDiver
 python3 -m venv .venv
 source .venv/bin/activate

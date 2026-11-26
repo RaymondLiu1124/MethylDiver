@@ -1,12 +1,12 @@
 # Command reference
 
-Help captured from MethylDiver **2.4.0**. Defaults appear in brackets.
+Help captured from MethylDiver **2.4.1**. Defaults appear in brackets.
 
 ## methyldiver
 
 ```text
 Program: methyldiver (Methylation and epiallele diversity from long reads)
-Version: 2.4.0
+Version: 2.4.1
 
 Usage: methyldiver <command> [options]
 
@@ -16,6 +16,7 @@ Commands:
   single                          Calculate methylation level and entropy for one sample.
   read                            View or export retained pattern tables as TSV or CSV.
   discover                        Rank genomic windows or BED regions by median Epiallele distance.
+  cluster                         Select cluster counts, fit regional medoids or assign reads.
 
 General options:
   -h, --help                      show this help message and exit
@@ -196,3 +197,7 @@ General options:
 Descriptive effect-size ranking, not a significance test. No additional read-depth filter is applied.
 Defaults are shown in brackets.
 ```
+
+## methyldiver cluster
+
+See [regional read clustering](cluster.md) for cluster-count selection, fitting and application, options and outputs. Run `methyldiver cluster fit --help` or `methyldiver cluster apply --help` for the complete option lists.

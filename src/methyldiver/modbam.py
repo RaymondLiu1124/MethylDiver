@@ -267,12 +267,8 @@ def decode_calls(read, anchors: set[int], threshold: float, min_base_quality: in
     return calls, ref_strand
 
 
-def _extract(bam, region, positions, units, config):
-    patterns = [Counter() for _ in units]
-    qc = Counter()
-    if not units:
-        return patterns, {"reads_fetched": 0, "status": "fewer_than_k_reference_cpgs"}
-    anchors = set(positions)
+def eligible_reads(bam, region, config, qc):
+    """Yield unique primary simplex molecules passing the shared alignment filters."""
     read_keys, molecule_keys = set(), set()
     for read in bam.fetch(region.chrom, region.start, region.end):
         qc["reads_fetched"] += 1
@@ -298,6 +294,16 @@ def _extract(bam, region, positions, units, config):
                 raise ValueError(f"{region.region_id}: multiple primary records for the same MI molecule.")
             molecule_keys.add(molecule)
         qc["reads_eligible"] += 1
+        yield read
+
+
+def _extract(bam, region, positions, units, config):
+    patterns = [Counter() for _ in units]
+    qc = Counter()
+    if not units:
+        return patterns, {"reads_fetched": 0, "status": "fewer_than_k_reference_cpgs"}
+    anchors = set(positions)
+    for read in eligible_reads(bam, region, config, qc):
         calls, strand = decode_calls(read, anchors, config["call_threshold"], config["min_base_quality"], qc,
                                      config["modification"])
         # Endpoints must span the modified positions (C on +, G on -).

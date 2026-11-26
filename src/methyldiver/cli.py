@@ -299,6 +299,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Rank genomic windows or BED regions by median Epiallele distance.",
         epilog="Descriptive effect-size ranking, not a significance test. No additional read-depth filter is applied.\nDefaults are shown in brackets.")
     _discovery_arguments(discover)
+    from .cluster import add_cluster_command, run_cluster
+    add_cluster_command(subcommands)
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv:
         parser.print_help()
@@ -308,6 +310,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     args = parser.parse_args(argv)
     try:
+        if args.command == "cluster":
+            run_cluster(args)
+            return 0
         if args.command == "discover":
             from .discover import discover_regions
             from .progress import LiveProgress, duration

@@ -3,7 +3,7 @@
 Clone the public repository:
 
 ```bash
-git clone https://github.com/lxd98/MethylDiver.git
+git clone https://github.com/RaymondLiu1124/MethylDiver.git
 cd MethylDiver
 python3 -m venv .venv
 .venv/bin/python -m pip install '.[genome]'

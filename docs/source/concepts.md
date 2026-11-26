@@ -30,9 +30,9 @@ the in-memory extraction API preserve all units and their depth flags.
 If a sample has no complete reads, its methylation level and entropy are missing;
 Epiallele distance requires complete reads in both samples.
 
-**Version:** 2.4.0 · **Python:** 3.10+ · **Input:** 5mC/5hmC long-read modBAM
+**Version:** 2.4.1 · **Python:** 3.10+ · **Input:** 5mC/5hmC long-read modBAM
 
-See [CHANGELOG.md](https://github.com/lxd98/MethylDiver/blob/main/CHANGELOG.md) for release notes and changes from v1.0.0,
+See [CHANGELOG.md](https://github.com/RaymondLiu1124/MethylDiver/blob/main/CHANGELOG.md) for release notes and changes from v1.0.0,
 including `compare` replacing `analyze` and `--N` replacing `--k`.
 
 | Quantity | Definition | Interpretation |

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.1 - 2026-11-26
+
+- Add `cluster fit` and `cluster apply` to learn methylation patterns per BED locus and assign reads from another sample to the saved medoids. Each read receives a cluster or a reason for abstention.
+- Add `--clusters K` for a fixed count (default 2), `cluster select` to compare candidate counts, and `--clusters auto` to choose a count separately at each locus.
+- Add `--full-read` to include confidently called reference CpGs across the aligned flanks of BED-selected reads. Each distance reports its shared-CpG count. The default minimum of three is adjustable with `--min-shared-cpgs`.
+
 ## 2.4.0 - 2026-11-18
 
 - Chunked `compare` and `single` runs now checkpoint completed chunks. After an interruption, repeat the command with `--resume-from [DIR]` to verify and reuse those chunks. Worker counts and read or pattern limits can be adjusted for a retry.

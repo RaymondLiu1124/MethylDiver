@@ -28,8 +28,8 @@ reader exports, and cleanup after errors. CLI tests cover `compare`, `single`,
 and `read` and reject the removed `analyze` and `metrics-counts` commands.
 
 The unchanged scalar baseline is in `tests/fixtures/legacy_metrics.py`.
-[`tests/fixtures/baseline.json`](https://github.com/lxd98/MethylDiver/blob/v2.0.0/tests/fixtures/baseline.json) records its origin
-and fingerprint. See [`NOTICE`](https://github.com/lxd98/MethylDiver/blob/v2.0.0/NOTICE) for attribution.
+[`tests/fixtures/baseline.json`](https://github.com/RaymondLiu1124/MethylDiver/blob/v2.0.0/tests/fixtures/baseline.json) records its origin
+and fingerprint. See [`NOTICE`](https://github.com/RaymondLiu1124/MethylDiver/blob/v2.0.0/NOTICE) for attribution.
 
 Mixed-modification regression tests cover combined/separate and numeric tags,
 both alignment/modification orientations, confidence thresholds, missing target
